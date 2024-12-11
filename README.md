@@ -17,7 +17,6 @@ The purpose of this repo is to provide an automated, scalable, and cost-effectiv
 * [Git Installed](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
 * [AWS Serverless Application Model](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html) (AWS SAM) installed
 
-
 ## Deployment Instructions
 
 1. Create a new directory, navigate to that directory in a terminal and clone the GitHub repository:
@@ -52,6 +51,29 @@ During the prompts:
 Once you have run `sam deploy --guided` mode once and saved arguments to a configuration file (samconfig.toml), you can use `sam deploy` in future to use these defaults.
 
 5. Note the outputs from the SAM deployment process. These contain the resource names and/or ARNs which are used for testing.
+
+## Permissions
+
+Once deployed it creates the following permissions:
+
+**S3 Permissions**:
+- `s3:GetObject`
+- `s3:PutObject`
+- `s3:ListBucket`
+
+**Transcribe Permissions**:
+- `transcribe:StartTranscriptionJob`
+- `transcribe:GetTranscriptionJob`
+
+**Bedrock Permissions**:
+- `bedrock:InvokeModel`
+
+**Lambda Permissions**:
+- Invoke `SpeakerIdentificationFunction`
+- Invoke `BedrockSummaryFunction`
+
+**CloudWatch Permissions**:
+- `cloudwatch:PutMetricData`
 
 ## How it works
 
