@@ -1,0 +1,143 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: "SAM Template for audio-summarizer to build a 1/ Step function to process a recorded \
+              \ audio file 2/ S3 Buckets to host the audio files as well as the Summary from Bedrock\
+                \n"
+
+Resources:
+  VoiceProcessingStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: statemachine\state_machine.asl.json
+      DefinitionSubstitutions:
+        OutputBucketName:
+          Ref: S3OutputBucket
+        SpeakerIdentificationFunction:
+          Ref: SpeakerIdentificationFunction
+        BedrockSummaryFunction:
+          Ref: BedrockSummaryFunction
+      Events:
+        StateChange:
+          Type: EventBridgeRule
+          Properties:
+            EventBusName: default
+            Pattern:
+              source:
+              - aws.s3
+              detail-type:
+              - Object Created
+              detail:
+                bucket:
+                  name:
+                  - Ref: S3HostingBucket
+      Policies:
+      - CloudWatchPutMetricPolicy: {}
+      - LambdaInvokePolicy: 
+          FunctionName: !Ref SpeakerIdentificationFunction 
+      - LambdaInvokePolicy: 
+          FunctionName: !Ref BedrockSummaryFunction       
+      - Statement:
+        - Sid: S3AccessPolicy
+          Effect: Allow
+          Action:
+          - s3:GetObject
+          - s3:PutObject
+          - s3:ListBucket 
+          Resource: 
+            - !Join 
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref S3HostingBucket
+                - /*
+            - !Join 
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref S3OutputBucket
+                - /*
+        - Sid: TranscribeAllPolicy
+          Effect: Allow
+          Action:
+          - transcribe:StartTranscriptionJob
+          - transcribe:GetTranscriptionJob
+          Resource: 
+            - !Sub 'arn:aws:transcribe:${AWS::Region}:${AWS::AccountId}:transcription-job/*'     
+
+  SpeakerIdentificationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda-functions\speaker-identification
+      Handler: speaker-identification.lambda_handler
+      Runtime: python3.12
+      Timeout: 300
+      Policies:
+        - S3FullAccessPolicy: 
+            BucketName: !Ref S3OutputBucket
+        
+
+  BedrockSummaryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda-functions\bedrock-summary
+      Handler: bedrock-summary.lambda_handler
+      Runtime: python3.12
+      Timeout: 300
+      Policies:
+        - S3FullAccessPolicy: 
+            BucketName: !Ref S3OutputBucket
+        - Statement:
+          - Sid: BedrockAccess 
+            Effect: Allow
+            Action:
+              - bedrock:InvokeModel
+            Resource:
+               - !Sub 'arn:aws:bedrock:${AWS::Region}::foundation-model/*'
+            
+      
+  S3HostingBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      NotificationConfiguration:
+        EventBridgeConfiguration:
+          EventBridgeEnabled: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: "AES256"
+  
+  S3OutputBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: "AES256"
+  
+Outputs:
+  VoiceProcessingStateMachineArn:
+    Description: Voice Processing State Machine ARN
+    Value:
+      Ref: VoiceProcessingStateMachine
+  S3HostingBucketArn:
+    Description: S3 Hosting bucket ARN
+    Value:
+      Fn::GetAtt:
+      - S3HostingBucket
+      - Arn
+  S3OutputBucketArn:
+    Description: S3 Output bucket ARN
+    Value:
+      Fn::GetAtt:
+      - S3OutputBucket
+      - Arn
+  SpeakerIdentificationFunctionArn:
+    Description: "Speaker Identification Lambda Function ARN"
+    Value:
+      Fn::GetAtt:
+      - SpeakerIdentificationFunction
+      - Arn
+  BedrockSummaryFunctionArn:
+    Description: "Bedrock Summary Lambda Function ARN"
+    Value:
+      Fn::GetAtt:
+      - BedrockSummaryFunction
+      - Arn
