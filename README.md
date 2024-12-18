@@ -91,7 +91,7 @@ The SAM defines these AWS resources as part of the stack:
 
 Provide steps to trigger the integration and show what should be observed if successful.
 
-*Prerequisites:* Ensure the AWS SAM application is deployed to your AWS Account. Confirm that Amazon SES is set up and the email address you use to receive emails is verified. 
+*Prerequisites:* Ensure the AWS SAM application is deployed to your AWS Account. 
 
 1. Generate Audio file via Polly 
     ``` aws polly synthesize-speech --output-format mp3 --voice-id <VoiceId> --text "<put your text here>" output.mp3 ```
